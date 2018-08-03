@@ -19,8 +19,22 @@ class FingerPaintImageView @JvmOverloads constructor(context: Context,
     private val defaultStrokeColor = Color.WHITE
     private val defaultStrokeWidth = 12f
     private val defaultTouchTolerance = 4f
+    private val mEmboss = EmbossMaskFilter(floatArrayOf(1F,1F,1F) , 0.4F, 6F, 3.5F)
+    private val mBlur = BlurMaskFilter(5F,BlurMaskFilter.Blur.NORMAL)
+    private val mBitmapPaint = Paint(Paint.DITHER_FLAG)
+    private var mBitmap : Bitmap? = null
+    private var mCanvas : Canvas? = null
+    private var widthBitmap:Int = 0
+    private var heightBitmap:Int = 0
+
+    var countDrawn = 0
 
     var inEditMode = false
+
+    var isEmboos = false
+
+    var isBlur = false
+
 
     var strokeColor = defaultStrokeColor
         set(value) {
@@ -69,6 +83,15 @@ class FingerPaintImageView @JvmOverloads constructor(context: Context,
     }
 
     /**
+     * Get current screen's width and height
+     */
+    override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
+        super.onSizeChanged(w, h, oldw, oldh)
+        widthBitmap = w
+        heightBitmap = h
+    }
+
+    /**
      * If there are any paths drawn on top of the image, this will return a bitmap with the original
      * content plus the drawings on top of it. Otherwise, the original bitmap will be returned.
      */
@@ -112,6 +135,7 @@ class FingerPaintImageView @JvmOverloads constructor(context: Context,
                 }
                 MotionEvent.ACTION_UP -> {
                     handleTouchEnd()
+                    countDrawn++
                     invalidate()
                 }
             }
@@ -164,7 +188,46 @@ class FingerPaintImageView @JvmOverloads constructor(context: Context,
 
     override fun onDraw(canvas: Canvas?) {
         super.onDraw(canvas)
-        paths.forEach { canvas?.drawPath(it.first, it.second) }
+        mBitmap = Bitmap.createBitmap(widthBitmap,
+                heightBitmap,
+                Bitmap.Config.ARGB_8888)
+        mCanvas = Canvas(mBitmap)
+
+        canvas?.save()
+        for (index in paths.indices){
+            if(index >= countDrawn) {
+                if (isEmboos) paths[index].second.maskFilter = mEmboss
+                else if (isBlur) paths[index].second.maskFilter = mBlur
+                else if (!isBlur && !isEmboos) paths[index].second.maskFilter = null
+            }
+            mCanvas?.drawPath(paths[index].first, paths[index].second)
+        }
+        canvas?.drawBitmap(mBitmap,0f,0f,mBitmapPaint)
+        canvas?.restore()
+    }
+
+    /**
+     * Enable normal mode
+     */
+    fun normal() {
+        isEmboos = false
+        isBlur = false
+    }
+
+    /**
+     * Enable emboss mode or disable it
+     */
+    fun emboss() {
+        isEmboos = true
+        isBlur = false
+    }
+
+    /**
+     * Enable blur mode or disable it
+     */
+    fun blur() {
+        isBlur = true
+        isEmboos = false
     }
 
     /**
@@ -172,6 +235,7 @@ class FingerPaintImageView @JvmOverloads constructor(context: Context,
      */
     fun undo() {
         paths.takeIf { it.isNotEmpty() }?.removeAt(paths.lastIndex)
+        countDrawn--
         invalidate()
     }
 
@@ -191,6 +255,7 @@ class FingerPaintImageView @JvmOverloads constructor(context: Context,
      */
     fun clear() {
         paths.clear()
+        countDrawn = 0
         invalidate()
     }
 }
