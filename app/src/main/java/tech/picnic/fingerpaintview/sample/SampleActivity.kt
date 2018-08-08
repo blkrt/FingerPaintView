@@ -55,7 +55,6 @@ class SampleActivity : AppCompatActivity(), SeekBar.OnSeekBarChangeListener, Vie
         }
     }
 
-
     private fun showPreview() {
         previewContainer.visibility = View.VISIBLE
         preview.setImageDrawable(finger.drawable)
