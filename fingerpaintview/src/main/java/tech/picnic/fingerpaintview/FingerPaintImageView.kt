@@ -16,24 +16,27 @@ class FingerPaintImageView @JvmOverloads constructor(context: Context,
                                                      defStyleRes: Int = 0) :
         AppCompatImageView(context, attrs, defStyleAttr) {
 
-    enum class BrushType {
+    private enum class BrushType {
         BLUR, EMBOSS, NORMAL
     }
 
     private val defaultStrokeColor = Color.WHITE
     private val defaultStrokeWidth = 12f
     private val defaultTouchTolerance = 4f
-    private val defaultEmboss = EmbossMaskFilter(floatArrayOf(1F, 1F, 1F), 0.4F, 6F, 3.5F)
-    private val defaultBlur = BlurMaskFilter(5F, BlurMaskFilter.Blur.NORMAL)
     private val defaultBitmapPaint = Paint(Paint.DITHER_FLAG)
     private var brushBitmap: Bitmap? = null
     private var brushCanvas: Canvas? = null
-    private var widthBitmap: Int = 0
-    private var heightBitmap: Int = 0
     private var countDrawn = 0
     private var currentBrush = BrushType.NORMAL
 
     var inEditMode = false
+
+    private val defaultEmboss: EmbossMaskFilter by lazy {
+        EmbossMaskFilter(floatArrayOf(1F, 1F, 1F), 0.4F, 6F, 3.5F)
+    }
+    private val defaultBlur: BlurMaskFilter by lazy {
+        BlurMaskFilter(5F, BlurMaskFilter.Blur.NORMAL)
+    }
 
     var strokeColor = defaultStrokeColor
         set(value) {
@@ -86,10 +89,8 @@ class FingerPaintImageView @JvmOverloads constructor(context: Context,
      */
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
         super.onSizeChanged(w, h, oldw, oldh)
-        widthBitmap = w
-        heightBitmap = h
-        brushBitmap = Bitmap.createBitmap(widthBitmap,
-                heightBitmap,
+        brushBitmap = Bitmap.createBitmap(w,
+                h,
                 Bitmap.Config.ARGB_8888)
         brushCanvas = Canvas(brushBitmap)
     }
@@ -195,11 +196,14 @@ class FingerPaintImageView @JvmOverloads constructor(context: Context,
         brushCanvas?.drawColor(Color.TRANSPARENT)
         canvas?.save()
         for (index in paths.indices) {
+            val path = paths[index]
             if (index >= countDrawn) {
-                var paintMaskFilter = paths[index].second
-                if (currentBrush == BrushType.EMBOSS) paintMaskFilter.maskFilter = defaultEmboss
-                else if (currentBrush == BrushType.BLUR) paintMaskFilter.maskFilter = defaultBlur
-                else if (currentBrush == BrushType.NORMAL) paintMaskFilter.maskFilter = null
+                path.second.maskFilter =
+                        when (currentBrush) {
+                            BrushType.EMBOSS -> defaultEmboss
+                            BrushType.BLUR -> defaultBlur
+                            BrushType.NORMAL -> null
+                        }
             }
             brushCanvas?.drawPath(paths[index].first, paths[index].second)
         }
@@ -215,14 +219,14 @@ class FingerPaintImageView @JvmOverloads constructor(context: Context,
     }
 
     /**
-     * Enable emboss mode or disable it
+     * Change brush type to emboss
      */
     fun emboss() {
         currentBrush = BrushType.EMBOSS
     }
 
     /**
-     * Enable blur mode or disable it
+     * Change brush type to blur
      */
     fun blur() {
         currentBrush = BrushType.BLUR
